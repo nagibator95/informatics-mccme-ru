@@ -88,7 +88,9 @@ class ProblemStandings(StandingsMixin, Base):
 
     def update(self, user):
         super(ProblemStandings, self).update(user)
-
+        # Надо не ejudge_runs, а просто runs, и у них
+        # должен бьть backref к EjudgeProblem
+        # Или нет: EjudgeRun вроде как и есть новая табличка run
         user_runs = self.problem.ejudge_runs.filter_by(
             user_id=user.ejudge_id
         ).order_by(EjudgeRun.create_time).all()
@@ -132,6 +134,8 @@ class StatementStandings(StandingsMixin, Base):
 
         log.info('StatementStandings(statement_id=%s) Created. Starting updates' % instance.statement_id)
 
+        # Здесь всё сложнее: Pynformatics Runs внутри ссылаются на ejudge runs
+        # в столбце run_id (зачем?)
         pynformatics_runs = DBSession.query(PynformaticsRun).filter_by(
             statement_id=instance.statement_id
         ).all()

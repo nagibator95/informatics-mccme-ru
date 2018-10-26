@@ -2,29 +2,27 @@ import io
 import logging
 import os
 import traceback
-import transaction
 import xmlrpc.client
-from pyramid.view import view_config
 from sqlalchemy import and_
 
-from pynformatics.contest.ejudge.ejudge_proxy import submit
+import transaction
+import pyramid.httpexceptions as exc
+from pyramid.view import view_config
+
+from pynformatics.contest.ejudge.ejudge_proxy import submit, STATUS_REPR
 from pynformatics.contest.ejudge.serve_internal import EjudgeContestCfg
 from pynformatics.contest.ejudge.submit_queue import queue_submit
-from pynformatics.model.user import SimpleUser
+from pynformatics.model.ejudge_run import EjudgeRun
 from pynformatics.model.problem import (
     EjudgeProblem,
     Problem,
 )
 from pynformatics.model.pynformatics_run import PynformaticsRun
-from pynformatics.model.ejudge_run import EjudgeRun
-from pynformatics.model.standings import ProblemStandings
+from pynformatics.model.user import SimpleUser
 from pynformatics.models import DBSession
-from pynformatics.view.utils import *
 from pynformatics.utils.context import with_context
 from pynformatics.utils.exceptions import (
-    EjudgeError,
     Forbidden,
-    ProblemNotFound,
 )
 from pynformatics.utils.validators import (
     validate_matchdict,
@@ -32,7 +30,7 @@ from pynformatics.utils.validators import (
     IntParam,
     Param,
 )
-
+from pynformatics.view.utils import *
 
 LOG = logging.getLogger(__name__)
 
@@ -63,23 +61,31 @@ def problem_show_limits(request):
 @view_config(route_name='problem.submit', renderer='json', request_method='POST')
 @with_context(require_auth=True)
 def problem_submits(request, context):
-    lang_id = request.params['lang_id']
+    lang_id = request.params["lang_id"]
+    problem_id = request.matchdict["problem_id"]
     input_file = request.POST['file'].file
-    filename = request.POST['file'].filename
-    ejudge_url = request.registry.settings['ejudge.new_client_url']
-    return {
-        'res': submit(
-            run_file=input_file,
-            contest_id=context.problem.ejudge_contest_id,
-            prob_id=context.problem.problem_id,
-            lang_id=lang_id,
-            login=context.user.login,
-            password=context.user.password,
-            filename=filename,
-            url=ejudge_url,
-            user_id=context.user_id,
-        )
+
+    _data = {
+        'lang_id': lang_id,
+        'user_id': context.user_id,
     }
+    _prob_id = problem_id
+    url = 'http://localhost:12346/problem/trusted/{}/submit_v2'.format(_prob_id)
+    try:
+        _resp = requests.post(url, files={'file': input_file}, data=_data)
+    except requests.exceptions.RequestException:
+        raise exc.HTTPInternalServerError()
+
+    # TODO: Надо провести все проверки, которые делает ej на отправляемый файл
+    # TODO: ещё до тестирования, и вернуть нужный код ошибки
+    code = 0  # Задача отправлена на проверку
+    return {
+            'res':
+                {
+                    'code': code,
+                    'message': STATUS_REPR[0]
+                }
+            }
 
 
 @view_config(route_name='problem.submit_v2', renderer='json', request_method='POST')

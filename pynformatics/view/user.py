@@ -26,6 +26,7 @@ def add(request):
     try:
         if (not RequestCheckUserCapability(request, 'moodle/ejudge_submits:comment')):
             raise Exception("Auth Error")
+        # Не забыть про run здесь
         run = EjudgeRun.get_by(run_id = request.params['run_id'], contest_id = request.params['contest_id'])
         if not run:
             raise Exception("Object not found")
