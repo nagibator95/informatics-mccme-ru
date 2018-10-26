@@ -7,6 +7,7 @@ from io import BytesIO
 from pyramid.view import view_config
 from pyramid.response import Response
 from sqlalchemy import and_
+import requests
 
 from pynformatics.model.ejudge_run import (
     EjudgeRun,
@@ -14,6 +15,8 @@ from pynformatics.model.ejudge_run import (
 )
 from pynformatics.model.statement import Statement
 from pynformatics.models import DBSession
+from pynformatics.models import DBSession
+from pynformatics.model.run import to32, get_lang_ext_by_id
 from pynformatics.utils.check_role import check_global_role
 from pynformatics.utils.context import with_context
 from pynformatics.utils.validators import (
@@ -30,21 +33,20 @@ from pynformatics.utils.exceptions import (
 log = logging.getLogger(__name__)
 
 
-# signal_description = {
-#     1 : "Hangup detected on controlling terminal or death of controlling process",
-#     2 : "Interrupt from keyboard",
-#     3 : "Quit from keyboard",
-#     4 : "Illegal Instruction",
-#     6 : "Abort signal",
-#     7 : "Bus error (bad memory access)",
-#     8 : "Floating point exception",
-#     9 : "Kill signal",
-#     11 : "Invalid memory reference",
-#     13 : "Broken pipe: write to pipe with no readers",
-#     14 : "Timer signal",
-#     15 : "Termination signal"
-# }
-
+signal_description = {
+    1 : "Hangup detected on controlling terminal or death of controlling process",
+    2 : "Interrupt from keyboard",
+    3 : "Quit from keyboard",
+    4 : "Illegal Instruction",
+    6 : "Abort signal",
+    7 : "Bus error (bad memory access)",
+    8 : "Floating point exception",
+    9 : "Kill signal",
+    11 : "Invalid memory reference",
+    13 : "Broken pipe: write to pipe with no readers",
+    14 : "Timer signal",
+    15 : "Termination signal"
+}
 
 @view_config(route_name='protocol.get', renderer='json')
 def get_protocol(request):
@@ -132,7 +134,7 @@ def protocol_get_v2(request, context):
 
 
 @view_config(route_name="protocol.get_full", renderer="json")
-@check_global_role(("teacher", "ejudge_teacher", "admin"))
+@check_global_role(("ejudge_teacher", "admin"))
 def protocol_get_full(request):
     contest_id = int(request.matchdict['contest_id'])
     run_id = int(request.matchdict['run_id'])
@@ -160,7 +162,7 @@ def protocol_get_full(request):
 
 
 @view_config(route_name="protocol.get_test", renderer="string")
-@check_global_role(("teacher", "ejudge_teacher", "admin"))
+@check_global_role(("ejudge_teacher", "admin"))
 def protocol_get_test(request):
     contest_id = int(request.matchdict['contest_id'])
     run_id = int(request.matchdict['run_id'])
@@ -170,7 +172,7 @@ def protocol_get_test(request):
 
 
 @view_config(route_name="protocol.get_corr", renderer="string")
-@check_global_role(("teacher", "ejudge_teacher", "admin"))
+@check_global_role(("ejudge_teacher", "admin"))
 def protocol_get_corr(request):
     contest_id = int(request.matchdict['contest_id'])
     run_id = int(request.matchdict['run_id'])
@@ -180,7 +182,7 @@ def protocol_get_corr(request):
 
 
 @view_config(route_name="protocol.get_outp", renderer="string")
-@check_global_role(("teacher", "ejudge_teacher", "admin"))
+@check_global_role(("ejudge_teacher", "admin"))
 def protocol_get_outp(request):
     contest_id = int(request.matchdict['contest_id'])
     run_id = int(request.matchdict['run_id'])
@@ -188,9 +190,19 @@ def protocol_get_outp(request):
     return run.get_output_file(int(request.matchdict['test_num']), tp='o')
 
 
+
+def check_captcha(resp, secret):
+    return requests.get("https://www.google.com/recaptcha/api/siteverify?secret={}&response={}".format(
+       secret,
+       resp)).json().get("success", False)
+
+
 @view_config(route_name="protocol.get_submit_archive", renderer="string")
-@check_global_role(("teacher", "ejudge_teacher", "admin"))
+@check_global_role(("ejudge_teacher", "admin"))
 def get_submit_archive(request):
+    recaptha_resp = request.params['g-recaptcha-response']
+    if not check_captcha(recaptha_resp, request.registry.settings["recaptcha.secret"]):
+        return "Не получилось"
     contest_id = int(request.matchdict['contest_id'])
     run_id = int(request.matchdict['run_id'])
     sources = "sources" in request.params

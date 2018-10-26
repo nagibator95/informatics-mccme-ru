@@ -1,5 +1,3 @@
-import codecs
-import json
 import requests
 import re
 import smtplib
@@ -24,6 +22,7 @@ STATUS_REPR = {
 1000: 'Отправляемый файл превышает допустимый размер. Требуется отправить исходный код или текстовый файл',
 }
 
+import codecs
 
 def report_error(code, login_data, submit_data, file, filename, user_id, addon = ''):
     t = str({'info' : addon, 'login_data' : login_data, 'submit_data' : submit_data, 'filename' : filename})
@@ -67,6 +66,7 @@ def submit(run_file, contest_id, prob_id, lang_id, login, password, filename, ur
 
     c = requests.post(url, data=submit_data, cookies=cookies, files=files)
 
+    report_error(-1, login_data, submit_data, run_file, filename, user_id, c.text)
     resp = json.loads(c.text)
 
     if 'run_id' in resp:
@@ -121,7 +121,7 @@ def rejudge(contest_id, run_id, status_id, login, password, url):
         'SID' : SID,
         'run_id' : run_id,
         'status' : status_id,
-        'action_68' : 'action_68'
+        'action_67' : 'action_67'
     }
 
     c = requests.post(url, data = submit_data, cookies = cookies, allow_redirects=True)
