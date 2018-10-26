@@ -14,6 +14,7 @@ from pynformatics.model.ejudge_run import EjudgeRun
 from pynformatics.model.meta import Base
 from pynformatics.models import DBSession
 from pynformatics.utils.functions import attrs_to_dict
+from pynformatics.utils.run import submit_path
 from pynformatics.utils.notify import notify_user
 
 
