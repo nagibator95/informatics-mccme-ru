@@ -1,6 +1,6 @@
 import requests
 from pyramid.encode import urlencode
-from pyramid.view import view_config
+from pyramid.view import view_config, view_defaults
 from pynformatics.model import User, EjudgeContest, Run, Comment, EjudgeProblem, Problem, Statement
 from pynformatics.contest.ejudge.serve_internal import EjudgeContestCfg
 from pynformatics.view.utils import *
@@ -32,12 +32,13 @@ def get_team_monitor(request):
         return {"result" : "error", "message" : e.__str__(), "stack" : traceback.format_exc()}
 
 
+@view_defaults(route_name='monitor_create')
 class MonitorApi:
     def __init__(self, request):
         self.request = request
         self.view_name = 'Monitor'
 
-    @view_config(route_name='monitor_create', request_method='GET')
+    @view_config(request_method='GET')
     def get_monitor(self):
         internal_link = urlencode(self.request.params)
 
